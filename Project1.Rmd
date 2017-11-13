@@ -1,0 +1,99 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Asimabha Sarkar"
+date: "November 11, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## R Markdown
+
+
+```
+
+The objective and goal of this project is to predict the manner in which they performed the exercise and machine learning classification of accelerometers data on the belt, forearm, arm, and dumbell of 6 participants.In training data "classe" is the outcome variable in the training set using predictor variables to predict 20 different test cases.The data for this project come from this source is: http://groupware.les.inf.puc-rio.br/har.
+
+The "classe" variable which classifies the correct and incorrect outcomes of A, B, C, D, and E categories. Coursera project writeup describes the model cross validation and expected out of sample error rate. Models applied successfully to predict all 20 different test cases on the Coursera website.
+
+This project work partially submitted to the Coursera for the course "Practical Machine Learning" by Jeff Leek, PhD, Professor at Johns Hopkins University.
+
+##Packages and Preparation
+The necessary R packages were loaded for this analysis:
+
+```{r}
+library(caret)
+library(randomForest)
+library(rpart); library(rpart.plot)
+library(rattle); library(repmis)
+```
+## Data Acquisition and Loading
+Data downloading and removing NA values from training data
+```{r}
+training <- read.csv("data/pml-training.csv", na.strings=c("NA", ""))
+testing <- read.csv("data/pml-testing.csv", na.strings=c("NA",""))
+```
+##Data Cleaning
+Delete columns(predictors) of the training set that contain any missing values.
+
+```{r}
+
+training <- training[ , colSums(is.na(training)) == 0]
+testing <- testing[ , colSums(is.na(testing)) == 0]
+```
+Removing first non-influence seven predictors for classe.
+```{r}
+trainData <- training[, -c(1:7)]
+testData <- testing[, -c(1:7)]
+```
+## Data spliting
+Due to prediction error we will split the data
+```{r}
+set.seed(7826) 
+inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)
+train <- trainData[inTrain, ]
+valid <- trainData[-inTrain, ]
+```
+# Prediction Algorithms
+
+Using classification trees and rf (random forests) to predict the outcome
+
+
+## Classification trees
+Considering 5-fold cross validation
+```{r ct}
+control <- trainControl(method = "cv", number = 5)
+fit_rpart <- train(classe ~ ., data = train, method = "rpart", 
+                   trControl = control)
+print(fit_rpart, digits = 4)
+#
+fancyRpartPlot(fit_rpart$finalModel)
+# predict outcomes using validation set
+predict_rpart <- predict(fit_rpart, valid)
+# Show prediction result
+(conf_rpart <- confusionMatrix(valid$classe, predict_rpart))
+(accuracy_rpart <- conf_rpart$overall[1])
+```
+Using classification tree does not predict the outcome classe very well as it shows sample error rate 50% from the confusion matrix.
+
+## Random forests
+
+Due to the failure of classification tree method we now try using random forests method.
+```{r rf}
+fit_rf <- train(classe ~ ., data = train, method = "rf",
+                   trControl = control)
+print(fit_rf, digits = 4)
+# predict outcomes using validation set
+predict_rf <- predict(fit_rf, valid)
+# Show prediction result
+(conf_rf <- confusionMatrix(valid$classe, predict_rf))
+(accuracy_rf <- conf_rf$overall[1])
+```
+Clearly, we can notice that accuracy rate produce better result using random forest because accuracy rate is 0.994.
+## Prediction on Testing Set
+```{r}
+(predict(fit_rf, testData))
+```
+
+
